@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/briandowns/spinner"
 	"github.com/spf13/cobra"
 
-	"github.com/hsy/costdiff/internal/aws"
-	"github.com/hsy/costdiff/internal/diff"
-	"github.com/hsy/costdiff/internal/output"
+	"github.com/hserkanyilmaz/costdiff/internal/aws"
+	"github.com/hserkanyilmaz/costdiff/internal/diff"
+	"github.com/hserkanyilmaz/costdiff/internal/output"
 )
 
 var (
@@ -35,7 +34,8 @@ func init() {
 }
 
 func runWatch(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), defaultAPITimeout)
+	defer cancel()
 
 	// Calculate date range
 	now := time.Now()
@@ -56,26 +56,14 @@ func runWatch(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return handleAWSError(err)
 	}
+	client.SetLogger(cliLogger{})
 
-	// Show spinner for API calls
-	var s *spinner.Spinner
-	if !quiet {
-		s = spinner.New(spinner.CharSets[14], 100*time.Millisecond)
-		s.Suffix = " Fetching daily cost data..."
-		s.Start()
-	}
-
-	// Fetch daily cost data
-	dailyCosts, err := client.GetDailyCosts(ctx, startDate, endDate, metric)
+	// Fetch daily cost data with spinner
+	dailyCosts, err := withSpinner("Fetching daily cost data...", func() ([]aws.DailyCost, error) {
+		return client.GetDailyCosts(ctx, startDate, endDate, metric)
+	})
 	if err != nil {
-		if s != nil {
-			s.Stop()
-		}
 		return handleAWSError(err)
-	}
-
-	if s != nil {
-		s.Stop()
 	}
 
 	// Build result

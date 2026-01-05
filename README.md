@@ -82,7 +82,10 @@ costdiff -g tag --tag team            # group by tag
 costdiff -g region                    # group by region
 costdiff -g account                   # group by linked account
 costdiff --threshold 100              # only show changes > $100
+costdiff --min-cost 50                # only show items >= $50
 costdiff -n 20                        # show top 20 items
+costdiff -s cost                      # sort by current cost
+costdiff -s diff-pct                  # sort by percentage change
 costdiff -o json                      # output as JSON
 costdiff -o csv                       # output as CSV
 ```
@@ -127,9 +130,11 @@ costdiff version
 | `--metric` | `-m` | Cost metric (see below) | net-amortized |
 | `--top` | `-n` | Number of results | 10 |
 | `--format` | `-o` | Output: table\|json\|csv | table |
+| `--sort` | `-s` | Sort by: diff\|diff-pct\|cost\|name | diff |
 | `--profile` | `-p` | AWS profile | |
 | `--region` | `-r` | AWS region | us-east-1 |
 | `--threshold` | | Only show changes above $X | 0 |
+| `--min-cost` | | Only show items where from or to cost >= $X | 0 |
 | `--quiet` | `-q` | Suppress non-essential output | false |
 | `--verbose` | `-v` | Debug output | false |
 

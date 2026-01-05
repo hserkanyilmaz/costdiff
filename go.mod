@@ -1,4 +1,4 @@
-module github.com/hsy/costdiff
+module github.com/hserkanyilmaz/costdiff
 
 go 1.21
 

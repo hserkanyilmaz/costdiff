@@ -3,14 +3,20 @@ package output
 import (
 	"encoding/csv"
 	"fmt"
+	"io"
 	"os"
 
-	"github.com/hsy/costdiff/internal/diff"
+	"github.com/hserkanyilmaz/costdiff/internal/diff"
 )
 
-// RenderCSV outputs the diff result as CSV
+// RenderCSV outputs the diff result as CSV to stdout
 func RenderCSV(result *diff.Result) error {
-	writer := csv.NewWriter(os.Stdout)
+	return RenderCSVTo(os.Stdout, result)
+}
+
+// RenderCSVTo outputs the diff result as CSV to the specified writer
+func RenderCSVTo(w io.Writer, result *diff.Result) error {
+	writer := csv.NewWriter(w)
 	defer writer.Flush()
 
 	// Write header
@@ -50,9 +56,14 @@ func RenderCSV(result *diff.Result) error {
 	return nil
 }
 
-// RenderTopCSV outputs the top result as CSV
+// RenderTopCSV outputs the top result as CSV to stdout
 func RenderTopCSV(result *diff.TopResult) error {
-	writer := csv.NewWriter(os.Stdout)
+	return RenderTopCSVTo(os.Stdout, result)
+}
+
+// RenderTopCSVTo outputs the top result as CSV to the specified writer
+func RenderTopCSVTo(w io.Writer, result *diff.TopResult) error {
+	writer := csv.NewWriter(w)
 	defer writer.Flush()
 
 	// Write header
@@ -78,9 +89,14 @@ func RenderTopCSV(result *diff.TopResult) error {
 	return nil
 }
 
-// RenderWatchCSV outputs the watch result as CSV
+// RenderWatchCSV outputs the watch result as CSV to stdout
 func RenderWatchCSV(result *diff.WatchResult) error {
-	writer := csv.NewWriter(os.Stdout)
+	return RenderWatchCSVTo(os.Stdout, result)
+}
+
+// RenderWatchCSVTo outputs the watch result as CSV to the specified writer
+func RenderWatchCSVTo(w io.Writer, result *diff.WatchResult) error {
+	writer := csv.NewWriter(w)
 	defer writer.Flush()
 
 	// Write header

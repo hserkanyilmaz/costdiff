@@ -3,15 +3,47 @@ package aws
 import (
 	"context"
 	"fmt"
+	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/costexplorer"
 )
 
+// CostFetcher defines the interface for fetching AWS cost data.
+// This interface allows for easy mocking in tests.
+type CostFetcher interface {
+	// GetCosts fetches cost data for a given period grouped by the specified type.
+	GetCosts(ctx context.Context, start, end time.Time, groupBy GroupType, metric string) (map[string]float64, error)
+
+	// GetDailyCosts fetches daily cost data for a given period.
+	GetDailyCosts(ctx context.Context, start, end time.Time, metric string) ([]DailyCost, error)
+
+	// GetTotalCost fetches total cost for a period without grouping.
+	GetTotalCost(ctx context.Context, start, end time.Time, metric string) (float64, error)
+
+	// SetLogger sets the logger for the client.
+	SetLogger(logger Logger)
+}
+
+// Ensure CostExplorerClient implements CostFetcher
+var _ CostFetcher = (*CostExplorerClient)(nil)
+
+// Logger interface for debug/warning logging
+type Logger interface {
+	Debugf(format string, args ...interface{})
+	Warnf(format string, args ...interface{})
+}
+
+// noopLogger is a logger that does nothing
+type noopLogger struct{}
+
+func (noopLogger) Debugf(format string, args ...interface{}) {}
+func (noopLogger) Warnf(format string, args ...interface{})  {}
+
 // CostExplorerClient wraps the AWS Cost Explorer client
 type CostExplorerClient struct {
 	client *costexplorer.Client
+	logger Logger
 }
 
 // NewCostExplorerClient creates a new Cost Explorer client with the given profile and region
@@ -40,7 +72,15 @@ func NewCostExplorerClient(ctx context.Context, profile, region string) (*CostEx
 
 	return &CostExplorerClient{
 		client: client,
+		logger: noopLogger{},
 	}, nil
+}
+
+// SetLogger sets the logger for the client
+func (c *CostExplorerClient) SetLogger(logger Logger) {
+	if logger != nil {
+		c.logger = logger
+	}
 }
 
 // GroupType defines how to group cost data
@@ -60,33 +100,3 @@ var (
 func (c *CostExplorerClient) GetClient() *costexplorer.Client {
 	return c.client
 }
-
-// FormatCurrency formats a float as a dollar amount
-func FormatCurrency(amount float64) string {
-	if amount < 0 {
-		return fmt.Sprintf("-$%.2f", -amount)
-	}
-	return fmt.Sprintf("$%.2f", amount)
-}
-
-// FormatPercent formats a float as a percentage
-func FormatPercent(pct float64) string {
-	if pct >= 0 {
-		return fmt.Sprintf("+%.1f%%", pct)
-	}
-	return fmt.Sprintf("%.1f%%", pct)
-}
-
-// FormatChange formats a cost change with sign
-func FormatChange(change float64) string {
-	if change >= 0 {
-		return fmt.Sprintf("+$%.2f", change)
-	}
-	return fmt.Sprintf("-$%.2f", -change)
-}
-
-// Ptr returns a pointer to the given string
-func Ptr(s string) *string {
-	return aws.String(s)
-}
-

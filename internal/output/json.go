@@ -3,31 +3,47 @@ package output
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 
-	"github.com/hsy/costdiff/internal/diff"
+	"github.com/hserkanyilmaz/costdiff/internal/diff"
 )
 
-// RenderJSON outputs the diff result as JSON
+// RenderJSON outputs the diff result as JSON to stdout
 func RenderJSON(result *diff.Result) error {
-	output := result.ToJSON()
-	return writeJSON(output)
+	return RenderJSONTo(os.Stdout, result)
 }
 
-// RenderTopJSON outputs the top result as JSON
+// RenderJSONTo outputs the diff result as JSON to the specified writer
+func RenderJSONTo(w io.Writer, result *diff.Result) error {
+	output := result.ToJSON()
+	return writeJSON(w, output)
+}
+
+// RenderTopJSON outputs the top result as JSON to stdout
 func RenderTopJSON(result *diff.TopResult) error {
-	output := result.ToJSON()
-	return writeJSON(output)
+	return RenderTopJSONTo(os.Stdout, result)
 }
 
-// RenderWatchJSON outputs the watch result as JSON
+// RenderTopJSONTo outputs the top result as JSON to the specified writer
+func RenderTopJSONTo(w io.Writer, result *diff.TopResult) error {
+	output := result.ToJSON()
+	return writeJSON(w, output)
+}
+
+// RenderWatchJSON outputs the watch result as JSON to stdout
 func RenderWatchJSON(result *diff.WatchResult) error {
-	output := result.ToJSON()
-	return writeJSON(output)
+	return RenderWatchJSONTo(os.Stdout, result)
 }
 
-func writeJSON(v interface{}) error {
-	encoder := json.NewEncoder(os.Stdout)
+// RenderWatchJSONTo outputs the watch result as JSON to the specified writer
+func RenderWatchJSONTo(w io.Writer, result *diff.WatchResult) error {
+	output := result.ToJSON()
+	return writeJSON(w, output)
+}
+
+func writeJSON(w io.Writer, v interface{}) error {
+	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
 
 	if err := encoder.Encode(v); err != nil {

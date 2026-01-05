@@ -3,8 +3,8 @@ package cmd
 import (
 	"testing"
 
-	"github.com/hsy/costdiff/internal/aws"
-	"github.com/hsy/costdiff/internal/diff"
+	"github.com/hserkanyilmaz/costdiff/internal/aws"
+	"github.com/hserkanyilmaz/costdiff/internal/diff"
 )
 
 func TestParsePeriods_Defaults(t *testing.T) {
@@ -69,6 +69,20 @@ func TestParsePeriods_InvalidTo(t *testing.T) {
 	_, _, err := parsePeriods("2024-10", "invalid")
 	if err == nil {
 		t.Error("expected error for invalid to date")
+	}
+}
+
+func TestParsePeriods_FromAfterTo(t *testing.T) {
+	_, _, err := parsePeriods("2024-12", "2024-10")
+	if err == nil {
+		t.Error("expected error when from date is after to date")
+	}
+}
+
+func TestParsePeriods_SameDates(t *testing.T) {
+	_, _, err := parsePeriods("2024-10", "2024-10")
+	if err == nil {
+		t.Error("expected error when from and to dates are the same")
 	}
 }
 
@@ -292,35 +306,12 @@ func TestAbsFunction(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := abs(tt.input); got != tt.want {
-			t.Errorf("abs(%v) = %v, want %v", tt.input, got, tt.want)
+		if got := diff.Abs(tt.input); got != tt.want {
+			t.Errorf("diff.Abs(%v) = %v, want %v", tt.input, got, tt.want)
 		}
 	}
 }
 
-func TestContains(t *testing.T) {
-	tests := []struct {
-		s      string
-		substr string
-		want   bool
-	}{
-		{"hello world", "world", true},
-		{"hello world", "foo", false},
-		{"hello world", "hello", true},
-		{"hello world", "", true},
-		{"", "hello", false},
-		{"", "", true},
-		{"AccessDeniedException", "AccessDenied", true},
-		{"NoCredentialProviders", "NoCredential", true},
-	}
-
-	for _, tt := range tests {
-		got := contains(tt.s, tt.substr)
-		if got != tt.want {
-			t.Errorf("contains(%q, %q) = %v, want %v", tt.s, tt.substr, got, tt.want)
-		}
-	}
-}
 
 func TestOutputResult_InvalidFormat(t *testing.T) {
 	result := &diff.Result{}

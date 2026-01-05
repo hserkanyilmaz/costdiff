@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/hsy/costdiff/cmd"
+	"github.com/hserkanyilmaz/costdiff/cmd"
 )
 
 func main() {
@@ -11,4 +11,3 @@ func main() {
 		os.Exit(1)
 	}
 }
-

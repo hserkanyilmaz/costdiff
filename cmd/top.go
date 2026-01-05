@@ -6,12 +6,11 @@ import (
 	"sort"
 	"time"
 
-	"github.com/briandowns/spinner"
 	"github.com/spf13/cobra"
 
-	"github.com/hsy/costdiff/internal/aws"
-	"github.com/hsy/costdiff/internal/diff"
-	"github.com/hsy/costdiff/internal/output"
+	"github.com/hserkanyilmaz/costdiff/internal/aws"
+	"github.com/hserkanyilmaz/costdiff/internal/diff"
+	"github.com/hserkanyilmaz/costdiff/internal/output"
 )
 
 var topCmd = &cobra.Command{
@@ -32,7 +31,8 @@ func init() {
 }
 
 func runTop(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), defaultAPITimeout)
+	defer cancel()
 
 	// Parse time period
 	period, err := parseTopPeriod(fromPeriod)
@@ -60,26 +60,14 @@ func runTop(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return handleAWSError(err)
 	}
+	client.SetLogger(cliLogger{})
 
-	// Show spinner for API calls
-	var s *spinner.Spinner
-	if !quiet {
-		s = spinner.New(spinner.CharSets[14], 100*time.Millisecond)
-		s.Suffix = " Fetching cost data..."
-		s.Start()
-	}
-
-	// Fetch cost data
-	costs, err := client.GetCosts(ctx, period.Start, period.End, groupType, metric)
+	// Fetch cost data with spinner
+	costs, err := withSpinner("Fetching cost data...", func() (map[string]float64, error) {
+		return client.GetCosts(ctx, period.Start, period.End, groupType, metric)
+	})
 	if err != nil {
-		if s != nil {
-			s.Stop()
-		}
 		return handleAWSError(err)
-	}
-
-	if s != nil {
-		s.Stop()
 	}
 
 	// Build result

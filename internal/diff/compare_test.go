@@ -288,8 +288,8 @@ func TestAbs(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := abs(tt.input); got != tt.want {
-			t.Errorf("abs(%v) = %v, want %v", tt.input, got, tt.want)
+		if got := Abs(tt.input); got != tt.want {
+			t.Errorf("Abs(%v) = %v, want %v", tt.input, got, tt.want)
 		}
 	}
 }

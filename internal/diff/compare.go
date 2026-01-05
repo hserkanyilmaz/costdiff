@@ -1,6 +1,7 @@
 package diff
 
 import (
+	"math"
 	"sort"
 )
 
@@ -57,7 +58,7 @@ func Compare(fromCosts, toCosts map[string]float64, fromPeriod, toPeriod Period)
 
 	// Sort by absolute diff (largest changes first)
 	sort.Slice(result.Items, func(i, j int) bool {
-		return abs(result.Items[i].Diff) > abs(result.Items[j].Diff)
+		return math.Abs(result.Items[i].Diff) > math.Abs(result.Items[j].Diff)
 	})
 
 	return result
@@ -104,7 +105,7 @@ func CompareSimple(fromCosts, toCosts map[string]float64) []Item {
 
 	// Sort by absolute diff (largest changes first)
 	sort.Slice(items, func(i, j int) bool {
-		return abs(items[i].Diff) > abs(items[j].Diff)
+		return math.Abs(items[i].Diff) > math.Abs(items[j].Diff)
 	})
 
 	return items
@@ -120,29 +121,35 @@ func SortByToCost(items []Item) {
 // SortByDiff sorts items by absolute diff descending
 func SortByDiff(items []Item) {
 	sort.Slice(items, func(i, j int) bool {
-		return abs(items[i].Diff) > abs(items[j].Diff)
+		return math.Abs(items[i].Diff) > math.Abs(items[j].Diff)
 	})
 }
 
 // SortByDiffPercent sorts items by absolute diff percentage descending
 func SortByDiffPercent(items []Item) {
 	sort.Slice(items, func(i, j int) bool {
-		return abs(items[i].DiffPct) > abs(items[j].DiffPct)
+		return math.Abs(items[i].DiffPct) > math.Abs(items[j].DiffPct)
 	})
 }
 
-func abs(x float64) float64 {
-	if x < 0 {
-		return -x
-	}
-	return x
+// SortByName sorts items by name alphabetically
+func SortByName(items []Item) {
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].Name < items[j].Name
+	})
+}
+
+// Abs returns the absolute value of x.
+// Deprecated: Use math.Abs directly. This is kept for backward compatibility.
+func Abs(x float64) float64 {
+	return math.Abs(x)
 }
 
 // FilterByMinDiff returns items with absolute diff >= minDiff
 func FilterByMinDiff(items []Item, minDiff float64) []Item {
 	filtered := make([]Item, 0)
 	for _, item := range items {
-		if abs(item.Diff) >= minDiff {
+		if math.Abs(item.Diff) >= minDiff {
 			filtered = append(filtered, item)
 		}
 	}
@@ -159,4 +166,3 @@ func FilterByMinCost(items []Item, minCost float64) []Item {
 	}
 	return filtered
 }
-

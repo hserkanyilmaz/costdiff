@@ -2,35 +2,41 @@ package output
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
 	"github.com/olekukonko/tablewriter"
 
-	"github.com/hsy/costdiff/internal/diff"
+	"github.com/hserkanyilmaz/costdiff/internal/diff"
 )
 
-// RenderTable outputs the diff result as a formatted table
+// RenderTable outputs the diff result as a formatted table to stdout
 func RenderTable(result *diff.Result) error {
+	return RenderTableTo(os.Stdout, result)
+}
+
+// RenderTableTo outputs the diff result as a formatted table to the specified writer
+func RenderTableTo(w io.Writer, result *diff.Result) error {
 	// Print header
-	fmt.Printf("\n%s\n\n", Header(fmt.Sprintf("AWS Cost Diff: %s → %s",
+	fmt.Fprintf(w, "\n%s\n\n", Header(fmt.Sprintf("AWS Cost Diff: %s → %s",
 		result.FromPeriod.Label(),
 		result.ToPeriod.Label())))
 
 	// Print total
 	totalChange := FormatDiffFull(result.TotalDiff, result.TotalPct, false, false)
-	fmt.Printf("Total: %s → %s (%s)\n\n",
+	fmt.Fprintf(w, "Total: %s → %s (%s)\n\n",
 		FormatCurrency(result.FromTotal),
 		FormatCurrency(result.ToTotal),
 		totalChange)
 
 	if len(result.Items) == 0 {
-		fmt.Println(Muted("No cost data found for the specified period."))
+		fmt.Fprintln(w, Muted("No cost data found for the specified period."))
 		return nil
 	}
 
 	// Create table
-	table := tablewriter.NewWriter(os.Stdout)
+	table := tablewriter.NewWriter(w)
 	table.SetHeader([]string{
 		"Service",
 		result.FromPeriod.Label(),
@@ -55,7 +61,7 @@ func RenderTable(result *diff.Result) error {
 	for _, item := range result.Items {
 		change := FormatDiffFull(item.Diff, item.DiffPct, item.IsNew, item.IsRemoved)
 		table.Append([]string{
-			truncate(item.Name, 35),
+			Truncate(item.Name, ServiceNameMaxWidth),
 			FormatCurrency(item.FromCost),
 			FormatCurrency(item.ToCost),
 			change,
@@ -63,26 +69,31 @@ func RenderTable(result *diff.Result) error {
 	}
 
 	table.Render()
-	fmt.Println()
+	fmt.Fprintln(w)
 
 	return nil
 }
 
-// RenderTopTable outputs the top result as a formatted table
+// RenderTopTable outputs the top result as a formatted table to stdout
 func RenderTopTable(result *diff.TopResult) error {
+	return RenderTopTableTo(os.Stdout, result)
+}
+
+// RenderTopTableTo outputs the top result as a formatted table to the specified writer
+func RenderTopTableTo(w io.Writer, result *diff.TopResult) error {
 	// Print header
-	fmt.Printf("\n%s\n\n", Header(fmt.Sprintf("AWS Top Costs: %s", result.Period.Label())))
+	fmt.Fprintf(w, "\n%s\n\n", Header(fmt.Sprintf("AWS Top Costs: %s", result.Period.Label())))
 
 	// Print total
-	fmt.Printf("Total: %s\n\n", FormatCurrency(result.Total))
+	fmt.Fprintf(w, "Total: %s\n\n", FormatCurrency(result.Total))
 
 	if len(result.Items) == 0 {
-		fmt.Println(Muted("No cost data found for the specified period."))
+		fmt.Fprintln(w, Muted("No cost data found for the specified period."))
 		return nil
 	}
 
 	// Create table
-	table := tablewriter.NewWriter(os.Stdout)
+	table := tablewriter.NewWriter(w)
 	table.SetHeader([]string{"#", "Service", "Cost", "% of Total"})
 
 	// Configure table style
@@ -102,37 +113,42 @@ func RenderTopTable(result *diff.TopResult) error {
 	for i, item := range result.Items {
 		table.Append([]string{
 			fmt.Sprintf("%d", i+1),
-			truncate(item.Name, 40),
+			Truncate(item.Name, TopServiceNameMaxWidth),
 			FormatCurrency(item.Cost),
 			fmt.Sprintf("%.1f%%", item.Percent),
 		})
 	}
 
 	table.Render()
-	fmt.Println()
+	fmt.Fprintln(w)
 
 	return nil
 }
 
-// RenderWatchTable outputs the watch result as a formatted table
+// RenderWatchTable outputs the watch result as a formatted table to stdout
 func RenderWatchTable(result *diff.WatchResult) error {
+	return RenderWatchTableTo(os.Stdout, result)
+}
+
+// RenderWatchTableTo outputs the watch result as a formatted table to the specified writer
+func RenderWatchTableTo(w io.Writer, result *diff.WatchResult) error {
 	// Print header
-	fmt.Printf("\n%s\n\n", Header(fmt.Sprintf("AWS Daily Costs: %s to %s",
+	fmt.Fprintf(w, "\n%s\n\n", Header(fmt.Sprintf("AWS Daily Costs: %s to %s",
 		result.StartDate.Format("Jan 2"),
 		result.EndDate.Format("Jan 2, 2006"))))
 
 	// Print summary
-	fmt.Printf("Total: %s  |  Daily Average: %s\n\n",
+	fmt.Fprintf(w, "Total: %s  |  Daily Average: %s\n\n",
 		FormatCurrency(result.Total),
 		FormatCurrency(result.Average))
 
 	if len(result.Days) == 0 {
-		fmt.Println(Muted("No cost data found for the specified period."))
+		fmt.Fprintln(w, Muted("No cost data found for the specified period."))
 		return nil
 	}
 
 	// Create table
-	table := tablewriter.NewWriter(os.Stdout)
+	table := tablewriter.NewWriter(w)
 	table.SetHeader([]string{"Date", "Day", "Cost", "Change"})
 
 	// Configure table style
@@ -168,15 +184,24 @@ func RenderWatchTable(result *diff.WatchResult) error {
 	table.Render()
 
 	// Print visual bar chart
-	fmt.Println()
-	renderBarChart(result.Days, result.Average)
-	fmt.Println()
+	fmt.Fprintln(w)
+	renderBarChartTo(w, result.Days, result.Average)
+	fmt.Fprintln(w)
 
 	return nil
 }
 
-// renderBarChart renders a simple ASCII bar chart
-func renderBarChart(days []diff.DayItem, average float64) {
+// Constants for table display widths
+const (
+	ServiceNameMaxWidth    = 35 // Max width for service names in diff table
+	TopServiceNameMaxWidth = 40 // Max width for service names in top table
+	BarChartMaxWidth       = 40 // Max width for ASCII bar chart
+	AboveAverageThreshold  = 1.2
+	BelowAverageThreshold  = 0.8
+)
+
+// renderBarChartTo renders a simple ASCII bar chart to the specified writer
+func renderBarChartTo(w io.Writer, days []diff.DayItem, average float64) {
 	if len(days) == 0 {
 		return
 	}
@@ -193,10 +218,8 @@ func renderBarChart(days []diff.DayItem, average float64) {
 		return
 	}
 
-	const maxWidth = 40
-
 	for _, day := range days {
-		width := int((day.Cost / maxCost) * maxWidth)
+		width := int((day.Cost / maxCost) * BarChartMaxWidth)
 		if width < 1 && day.Cost > 0 {
 			width = 1
 		}
@@ -204,26 +227,30 @@ func renderBarChart(days []diff.DayItem, average float64) {
 		bar := strings.Repeat("█", width)
 
 		// Color based on comparison to average
-		if day.Cost > average*1.2 {
+		if day.Cost > average*AboveAverageThreshold {
 			bar = Red.Sprint(bar)
-		} else if day.Cost < average*0.8 {
+		} else if day.Cost < average*BelowAverageThreshold {
 			bar = Green.Sprint(bar)
 		} else {
 			bar = Cyan.Sprint(bar)
 		}
 
-		fmt.Printf("%s %s %s\n",
+		fmt.Fprintf(w, "%s %s %s\n",
 			Muted(day.Date.Format("Jan 2")),
 			bar,
 			Muted(FormatCurrency(day.Cost)))
 	}
 }
 
-// truncate shortens a string to maxLen characters
-func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
+// Truncate shortens a string to maxLen characters, respecting unicode runes
+func Truncate(s string, maxLen int) string {
+	runes := []rune(s)
+	if len(runes) <= maxLen {
 		return s
 	}
-	return s[:maxLen-3] + "..."
+	if maxLen <= 3 {
+		return string(runes[:maxLen])
+	}
+	return string(runes[:maxLen-3]) + "..."
 }
 

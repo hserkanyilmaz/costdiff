@@ -2,19 +2,25 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
-	"github.com/briandowns/spinner"
+	"github.com/aws/smithy-go"
 	"github.com/spf13/cobra"
 
-	"github.com/hsy/costdiff/internal/aws"
-	"github.com/hsy/costdiff/internal/diff"
-	"github.com/hsy/costdiff/internal/output"
+	"github.com/hserkanyilmaz/costdiff/internal/aws"
+	"github.com/hserkanyilmaz/costdiff/internal/diff"
+	"github.com/hserkanyilmaz/costdiff/internal/output"
 )
 
+// Default timeout for AWS API calls
+const defaultAPITimeout = 2 * time.Minute
+
 func runDiff(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), defaultAPITimeout)
+	defer cancel()
 
 	// Parse time periods
 	from, to, err := parsePeriods(fromPeriod, toPeriod)
@@ -43,42 +49,36 @@ func runDiff(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return handleAWSError(err)
 	}
+	client.SetLogger(cliLogger{})
 
-	// Show spinner for API calls
-	var s *spinner.Spinner
-	if !quiet {
-		s = spinner.New(spinner.CharSets[14], 100*time.Millisecond)
-		s.Suffix = " Fetching cost data..."
-		s.Start()
-	}
+	// Fetch cost data for both periods with spinner
+	spin := newProgressSpinner("Fetching cost data...")
+	defer spin.Stop()
 
-	// Fetch cost data for both periods
 	fromCosts, err := client.GetCosts(ctx, from.Start, from.End, groupType, metric)
 	if err != nil {
-		if s != nil {
-			s.Stop()
-		}
 		return handleAWSError(err)
 	}
 
 	toCosts, err := client.GetCosts(ctx, to.Start, to.End, groupType, metric)
 	if err != nil {
-		if s != nil {
-			s.Stop()
-		}
 		return handleAWSError(err)
 	}
 
-	if s != nil {
-		s.Stop()
-	}
+	spin.Stop()
 
 	// Calculate diff
 	result := diff.Compare(fromCosts, toCosts, from, to)
 
+	// Apply sorting
+	applySorting(result.Items, sortBy)
+
 	// Apply filters
 	if threshold > 0 {
 		result = filterByThreshold(result, threshold)
+	}
+	if minCost > 0 {
+		result.Items = diff.FilterByMinCost(result.Items, minCost)
 	}
 
 	// Limit results
@@ -123,6 +123,12 @@ func parsePeriods(from, to string) (diff.Period, diff.Period, error) {
 		if err != nil {
 			return diff.Period{}, diff.Period{}, fmt.Errorf("invalid --to date: %w", err)
 		}
+	}
+
+	// Validate that from period starts before to period
+	if !fromPeriod.Start.Before(toPeriod.Start) {
+		return diff.Period{}, diff.Period{}, fmt.Errorf("--from date (%s) must be before --to date (%s)",
+			fromPeriod.Start.Format("2006-01-02"), toPeriod.Start.Format("2006-01-02"))
 	}
 
 	return fromPeriod, toPeriod, nil
@@ -176,19 +182,12 @@ func filterByThreshold(result *diff.Result, threshold float64) *diff.Result {
 	}
 
 	for _, item := range result.Items {
-		if abs(item.Diff) >= threshold {
+		if diff.Abs(item.Diff) >= threshold {
 			filtered.Items = append(filtered.Items, item)
 		}
 	}
 
 	return filtered
-}
-
-func abs(x float64) float64 {
-	if x < 0 {
-		return -x
-	}
-	return x
 }
 
 func outputResult(result *diff.Result, format string) error {
@@ -204,38 +203,58 @@ func outputResult(result *diff.Result, format string) error {
 	}
 }
 
-func handleAWSError(err error) error {
-	errStr := err.Error()
+func applySorting(items []diff.Item, sortBy string) {
+	switch sortBy {
+	case "diff":
+		diff.SortByDiff(items)
+	case "diff-pct":
+		diff.SortByDiffPercent(items)
+	case "cost":
+		diff.SortByToCost(items)
+	case "name":
+		diff.SortByName(items)
+	default:
+		// Default to sorting by diff
+		diff.SortByDiff(items)
+	}
+}
 
-	// Check for common AWS errors
-	if contains(errStr, "NoCredentialProviders") || contains(errStr, "no EC2 IMDS role found") {
+func handleAWSError(err error) error {
+	// Check for context timeout/cancellation
+	if errors.Is(err, context.DeadlineExceeded) {
+		return fmt.Errorf("AWS API request timed out. Check your network connection and try again")
+	}
+	if errors.Is(err, context.Canceled) {
+		return fmt.Errorf("AWS API request was cancelled")
+	}
+
+	// Check for AWS API errors using proper type assertion
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) {
+		switch apiErr.ErrorCode() {
+		case "AccessDeniedException":
+			return fmt.Errorf("access denied. Ensure your IAM user/role has the following permissions:\n  - ce:GetCostAndUsage\n  - ce:GetCostForecast")
+		case "OptInRequired":
+			return fmt.Errorf("AWS Cost Explorer is not enabled for this account.\n\nTo enable it:\n  1. Go to AWS Console > Billing > Cost Explorer\n  2. Click 'Enable Cost Explorer'\n  3. Wait up to 24 hours for data to be available")
+		case "InvalidParameterValue", "ValidationException":
+			return fmt.Errorf("invalid parameter: %s\n\nCheck your date range and grouping options", apiErr.ErrorMessage())
+		case "ThrottlingException", "RequestLimitExceeded":
+			return fmt.Errorf("AWS API rate limit exceeded. Please wait a moment and try again")
+		}
+		// Return the API error message for other AWS errors
+		return fmt.Errorf("AWS API error (%s): %s", apiErr.ErrorCode(), apiErr.ErrorMessage())
+	}
+
+	// Fallback to string matching for credential errors (these don't implement APIError)
+	errStr := err.Error()
+	if strings.Contains(errStr, "NoCredentialProviders") || strings.Contains(errStr, "no EC2 IMDS role found") {
 		return fmt.Errorf("AWS credentials not found.\n\nPlease configure credentials using one of:\n  - AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables\n  - AWS credentials file (~/.aws/credentials)\n  - IAM role (when running on EC2/ECS/Lambda)\n  - Use --profile flag to specify a named profile")
 	}
 
-	if contains(errStr, "AccessDeniedException") {
-		return fmt.Errorf("access denied. Ensure your IAM user/role has the following permissions:\n  - ce:GetCostAndUsage\n  - ce:GetCostForecast")
-	}
-
-	if contains(errStr, "OptInRequired") || contains(errStr, "Cost Explorer has not been enabled") {
+	// Also check for string-based "Cost Explorer has not been enabled" in case it comes from a different error type
+	if strings.Contains(errStr, "Cost Explorer has not been enabled") {
 		return fmt.Errorf("AWS Cost Explorer is not enabled for this account.\n\nTo enable it:\n  1. Go to AWS Console > Billing > Cost Explorer\n  2. Click 'Enable Cost Explorer'\n  3. Wait up to 24 hours for data to be available")
 	}
 
-	if contains(errStr, "InvalidParameterValue") {
-		return fmt.Errorf("invalid parameter: %w\n\nCheck your date range and grouping options", err)
-	}
-
 	return fmt.Errorf("AWS API error: %w", err)
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsHelper(s, substr))
-}
-
-func containsHelper(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

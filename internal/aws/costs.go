@@ -18,72 +18,95 @@ type DailyCost struct {
 }
 
 // GetCosts fetches cost data for a given period grouped by the specified type
+// Handles pagination automatically to retrieve all results
 func (c *CostExplorerClient) GetCosts(ctx context.Context, start, end time.Time, groupBy GroupType, metric string) (map[string]float64, error) {
-	input := &costexplorer.GetCostAndUsageInput{
-		TimePeriod: &types.DateInterval{
-			Start: aws.String(start.Format("2006-01-02")),
-			End:   aws.String(end.Format("2006-01-02")),
-		},
-		Granularity: types.GranularityMonthly,
-		Metrics:     []string{metric},
-		GroupBy:     buildGroupDefinition(groupBy),
-	}
-
-	result, err := c.client.GetCostAndUsage(ctx, input)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get cost data: %w", err)
-	}
-
 	costs := make(map[string]float64)
+	var nextPageToken *string
 
-	for _, resultByTime := range result.ResultsByTime {
-		for _, group := range resultByTime.Groups {
-			name := getGroupName(group.Keys)
-			amount := parseAmount(group.Metrics[metric])
-			costs[name] += amount
+	for {
+		input := &costexplorer.GetCostAndUsageInput{
+			TimePeriod: &types.DateInterval{
+				Start: aws.String(start.Format("2006-01-02")),
+				End:   aws.String(end.Format("2006-01-02")),
+			},
+			Granularity:   types.GranularityMonthly,
+			Metrics:       []string{metric},
+			GroupBy:       buildGroupDefinition(groupBy),
+			NextPageToken: nextPageToken,
 		}
+
+		result, err := c.client.GetCostAndUsage(ctx, input)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get cost data: %w", err)
+		}
+
+		for _, resultByTime := range result.ResultsByTime {
+			for _, group := range resultByTime.Groups {
+				name := getGroupName(group.Keys)
+				amount := parseAmount(group.Metrics[metric])
+				costs[name] += amount
+			}
+		}
+
+		// Check for more pages
+		if result.NextPageToken == nil || *result.NextPageToken == "" {
+			break
+		}
+		nextPageToken = result.NextPageToken
 	}
 
 	return costs, nil
 }
 
 // GetDailyCosts fetches daily cost data for a given period
+// Handles pagination automatically to retrieve all results
 func (c *CostExplorerClient) GetDailyCosts(ctx context.Context, start, end time.Time, metric string) ([]DailyCost, error) {
-	input := &costexplorer.GetCostAndUsageInput{
-		TimePeriod: &types.DateInterval{
-			Start: aws.String(start.Format("2006-01-02")),
-			End:   aws.String(end.Format("2006-01-02")),
-		},
-		Granularity: types.GranularityDaily,
-		Metrics:     []string{metric},
-	}
-
-	result, err := c.client.GetCostAndUsage(ctx, input)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get daily cost data: %w", err)
-	}
-
 	var dailyCosts []DailyCost
+	var nextPageToken *string
 
-	for _, resultByTime := range result.ResultsByTime {
-		date, err := time.Parse("2006-01-02", *resultByTime.TimePeriod.Start)
+	for {
+		input := &costexplorer.GetCostAndUsageInput{
+			TimePeriod: &types.DateInterval{
+				Start: aws.String(start.Format("2006-01-02")),
+				End:   aws.String(end.Format("2006-01-02")),
+			},
+			Granularity:   types.GranularityDaily,
+			Metrics:       []string{metric},
+			NextPageToken: nextPageToken,
+		}
+
+		result, err := c.client.GetCostAndUsage(ctx, input)
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("failed to get daily cost data: %w", err)
 		}
 
-		var totalCost float64
-		if len(resultByTime.Groups) > 0 {
-			for _, group := range resultByTime.Groups {
-				totalCost += parseAmount(group.Metrics[metric])
+		for _, resultByTime := range result.ResultsByTime {
+			date, err := time.Parse("2006-01-02", *resultByTime.TimePeriod.Start)
+			if err != nil {
+				c.logger.Warnf("failed to parse date %q: %v, skipping entry", *resultByTime.TimePeriod.Start, err)
+				continue
 			}
-		} else {
-			totalCost = parseAmount(resultByTime.Total[metric])
+
+			var totalCost float64
+			if len(resultByTime.Groups) > 0 {
+				for _, group := range resultByTime.Groups {
+					totalCost += parseAmount(group.Metrics[metric])
+				}
+			} else {
+				totalCost = parseAmount(resultByTime.Total[metric])
+			}
+
+			dailyCosts = append(dailyCosts, DailyCost{
+				Date: date,
+				Cost: totalCost,
+			})
 		}
 
-		dailyCosts = append(dailyCosts, DailyCost{
-			Date: date,
-			Cost: totalCost,
-		})
+		// Check for more pages
+		if result.NextPageToken == nil || *result.NextPageToken == "" {
+			break
+		}
+		nextPageToken = result.NextPageToken
 	}
 
 	return dailyCosts, nil
@@ -159,24 +182,36 @@ func parseAmount(metric types.MetricValue) float64 {
 }
 
 // GetTotalCost fetches total cost for a period without grouping
+// Handles pagination automatically to retrieve all results
 func (c *CostExplorerClient) GetTotalCost(ctx context.Context, start, end time.Time, metric string) (float64, error) {
-	input := &costexplorer.GetCostAndUsageInput{
-		TimePeriod: &types.DateInterval{
-			Start: aws.String(start.Format("2006-01-02")),
-			End:   aws.String(end.Format("2006-01-02")),
-		},
-		Granularity: types.GranularityMonthly,
-		Metrics:     []string{metric},
-	}
-
-	result, err := c.client.GetCostAndUsage(ctx, input)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get total cost: %w", err)
-	}
-
 	var total float64
-	for _, resultByTime := range result.ResultsByTime {
-		total += parseAmount(resultByTime.Total[metric])
+	var nextPageToken *string
+
+	for {
+		input := &costexplorer.GetCostAndUsageInput{
+			TimePeriod: &types.DateInterval{
+				Start: aws.String(start.Format("2006-01-02")),
+				End:   aws.String(end.Format("2006-01-02")),
+			},
+			Granularity:   types.GranularityMonthly,
+			Metrics:       []string{metric},
+			NextPageToken: nextPageToken,
+		}
+
+		result, err := c.client.GetCostAndUsage(ctx, input)
+		if err != nil {
+			return 0, fmt.Errorf("failed to get total cost: %w", err)
+		}
+
+		for _, resultByTime := range result.ResultsByTime {
+			total += parseAmount(resultByTime.Total[metric])
+		}
+
+		// Check for more pages
+		if result.NextPageToken == nil || *result.NextPageToken == "" {
+			break
+		}
+		nextPageToken = result.NextPageToken
 	}
 
 	return total, nil
