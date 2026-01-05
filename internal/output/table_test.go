@@ -236,23 +236,69 @@ func TestRenderWatchTableTo_EmptyDays(t *testing.T) {
 
 func TestTruncate(t *testing.T) {
 	tests := []struct {
-		input   string
-		maxLen  int
-		want    string
+		name   string
+		input  string
+		maxLen int
+		want   string
 	}{
-		{"short", 10, "short"},
-		{"exactly10!", 10, "exactly10!"},
-		{"this is a long string", 10, "this is..."},
-		{"abc", 3, "abc"},
-		{"abcd", 3, "abc"},
-		{"ab", 3, "ab"},
-		{"unicode: 日本語", 12, "unicode: 日本語"}, // 12 runes exactly, no truncation
-		{"unicode: 日本語テスト", 12, "unicode: ..."},   // 15 runes, truncated
-		{"", 10, ""},
+		{
+			name:   "no truncation needed",
+			input:  "short",
+			maxLen: 10,
+			want:   "short",
+		},
+		{
+			name:   "truncate at word boundary",
+			input:  "Amazon Elastic Compute Cloud - Compute",
+			maxLen: 35,
+			want:   "Amazon Elastic Compute Cloud...",
+		},
+		{
+			name:   "truncate AWS service name",
+			input:  "Amazon Relational Database Service",
+			maxLen: 30,
+			want:   "Amazon Relational Database...",
+		},
+		{
+			name:   "truncate at hyphen boundary",
+			input:  "EC2-Instances-Running",
+			maxLen: 18,
+			want:   "EC2-Instances...",
+		},
+		{
+			name:   "no good word boundary - fall back to char limit",
+			input:  "VeryLongServiceNameWithoutSpaces",
+			maxLen: 20,
+			want:   "VeryLongServiceNa...",
+		},
+		{
+			name:   "word boundary too early - fall back to char limit",
+			input:  "A VeryLongServiceNameHere",
+			maxLen: 20,
+			want:   "A VeryLongService...",
+		},
+		{
+			name:   "exact length",
+			input:  "ExactlyTwenty12345",
+			maxLen: 18,
+			want:   "ExactlyTwenty12345",
+		},
+		{
+			name:   "short maxLen",
+			input:  "test",
+			maxLen: 3,
+			want:   "tes",
+		},
+		{
+			name:   "empty string",
+			input:  "",
+			maxLen: 10,
+			want:   "",
+		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			got := Truncate(tt.input, tt.maxLen)
 			if got != tt.want {
 				t.Errorf("Truncate(%q, %d) = %q, want %q", tt.input, tt.maxLen, got, tt.want)
@@ -303,4 +349,3 @@ func TestRenderTableTo_NewAndRemovedItems(t *testing.T) {
 		t.Error("Output should contain 'removed' label")
 	}
 }
-

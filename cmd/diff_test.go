@@ -169,7 +169,7 @@ func TestParseGroupBy(t *testing.T) {
 		{group: "tag", tag: "environment", wantType: "TAG", wantKey: "environment"},
 		{group: "tag", tag: "", wantErr: true},
 		{group: "invalid", wantErr: true},
-		{group: "SERVICE", wantErr: true}, // Case sensitive
+		{group: "SERVICE", wantErr: true},
 	}
 
 	for _, tt := range tests {
@@ -265,7 +265,7 @@ func TestGetAWSMetric(t *testing.T) {
 		{input: "normalized", want: "NormalizedUsageAmount"},
 		{input: "usage-quantity", want: "UsageQuantity"},
 		{input: "invalid", wantErr: true},
-		{input: "NetAmortizedCost", wantErr: true}, // Full AWS name not accepted
+		{input: "NetAmortizedCost", wantErr: true},
 		{input: "", wantErr: true},
 	}
 
@@ -312,4 +312,3 @@ func TestGroupTypeConstants(t *testing.T) {
 		t.Errorf("GroupByAccount = %+v, want DIMENSION/LINKED_ACCOUNT", aws.GroupByAccount)
 	}
 }
-

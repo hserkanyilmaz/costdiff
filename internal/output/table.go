@@ -50,6 +50,7 @@ func RenderTableTo(w io.Writer, result *diff.Result) error {
 	table.SetColumnSeparator("")
 	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
 	table.SetAlignment(tablewriter.ALIGN_RIGHT)
+	table.SetAutoWrapText(false)
 	table.SetColumnAlignment([]int{
 		tablewriter.ALIGN_LEFT,
 		tablewriter.ALIGN_RIGHT,
@@ -102,6 +103,7 @@ func RenderTopTableTo(w io.Writer, result *diff.TopResult) error {
 	table.SetColumnSeparator("")
 	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
 	table.SetAlignment(tablewriter.ALIGN_RIGHT)
+	table.SetAutoWrapText(false)
 	table.SetColumnAlignment([]int{
 		tablewriter.ALIGN_RIGHT,
 		tablewriter.ALIGN_LEFT,
@@ -157,6 +159,7 @@ func RenderWatchTableTo(w io.Writer, result *diff.WatchResult) error {
 	table.SetColumnSeparator("")
 	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
 	table.SetAlignment(tablewriter.ALIGN_RIGHT)
+	table.SetAutoWrapText(false) // Prevent text wrapping
 	table.SetColumnAlignment([]int{
 		tablewriter.ALIGN_LEFT,
 		tablewriter.ALIGN_LEFT,
@@ -193,9 +196,9 @@ func RenderWatchTableTo(w io.Writer, result *diff.WatchResult) error {
 
 // Constants for table display widths
 const (
-	ServiceNameMaxWidth    = 35 // Max width for service names in diff table
-	TopServiceNameMaxWidth = 40 // Max width for service names in top table
-	BarChartMaxWidth       = 40 // Max width for ASCII bar chart
+	ServiceNameMaxWidth    = 40
+	TopServiceNameMaxWidth = 40
+	BarChartMaxWidth       = 40
 	AboveAverageThreshold  = 1.2
 	BelowAverageThreshold  = 0.8
 )
@@ -242,7 +245,8 @@ func renderBarChartTo(w io.Writer, days []diff.DayItem, average float64) {
 	}
 }
 
-// Truncate shortens a string to maxLen characters, respecting unicode runes
+// Truncate shortens a string to maxLen characters, preferring to break at word boundaries.
+// It respects unicode runes and tries to avoid cutting words in the middle.
 func Truncate(s string, maxLen int) string {
 	runes := []rune(s)
 	if len(runes) <= maxLen {
@@ -251,6 +255,23 @@ func Truncate(s string, maxLen int) string {
 	if maxLen <= 3 {
 		return string(runes[:maxLen])
 	}
-	return string(runes[:maxLen-3]) + "..."
-}
 
+	// Find the last space before maxLen-3 (to leave room for "...")
+	cutoff := maxLen - 3
+	lastSpace := -1
+	for i := cutoff; i >= 0; i-- {
+		if runes[i] == ' ' || runes[i] == '-' {
+			lastSpace = i
+			break
+		}
+	}
+
+	// If we found a word boundary in a reasonable position (at least 60% of max length),
+	// use it. Otherwise, just cut at the character limit.
+	minAcceptable := maxLen * 6 / 10
+	if lastSpace >= minAcceptable {
+		return strings.TrimRight(string(runes[:lastSpace]), " -") + "..."
+	}
+
+	return string(runes[:cutoff]) + "..."
+}
