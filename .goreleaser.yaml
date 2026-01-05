@@ -1,0 +1,99 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+
+builds:
+  - id: costdiff
+    main: ./main.go
+    binary: costdiff
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/hserkanyilmaz/costdiff/cmd.Version={{.Version}}
+      - -X github.com/hserkanyilmaz/costdiff/cmd.Commit={{.Commit}}
+      - -X github.com/hserkanyilmaz/costdiff/cmd.BuildDate={{.Date}}
+
+archives:
+  - id: default
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^chore:'
+      - Merge pull request
+      - Merge branch
+  groups:
+    - title: 'New Features'
+      regexp: "^.*feat[(\\w)]*:+.*$"
+      order: 0
+    - title: 'Bug Fixes'
+      regexp: "^.*fix[(\\w)]*:+.*$"
+      order: 1
+    - title: 'Other Changes'
+      order: 999
+
+brews:
+  - name: costdiff
+    repository:
+      owner: hserkanyilmaz
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    directory: Formula
+    homepage: "https://github.com/hserkanyilmaz/costdiff"
+    description: "CLI tool to compare AWS costs between time periods"
+    license: "MIT"
+    skip_upload: auto
+    test: |
+      system "#{bin}/costdiff", "version"
+
+release:
+  github:
+    owner: hserkanyilmaz
+    name: costdiff
+  draft: false
+  prerelease: auto
+  mode: append
+  name_template: "{{.ProjectName}}-v{{.Version}}"
+
+announce:
+  skip: true
+
