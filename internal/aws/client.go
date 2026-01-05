@@ -18,9 +18,6 @@ type CostFetcher interface {
 	// GetDailyCosts fetches daily cost data for a given period.
 	GetDailyCosts(ctx context.Context, start, end time.Time, metric string) ([]DailyCost, error)
 
-	// GetTotalCost fetches total cost for a period without grouping.
-	GetTotalCost(ctx context.Context, start, end time.Time, metric string) (float64, error)
-
 	// SetLogger sets the logger for the client.
 	SetLogger(logger Logger)
 }
@@ -95,8 +92,3 @@ var (
 	GroupByRegion  = GroupType{Type: "DIMENSION", Key: "REGION"}
 	GroupByAccount = GroupType{Type: "DIMENSION", Key: "LINKED_ACCOUNT"}
 )
-
-// GetClient returns the underlying Cost Explorer client for advanced use cases
-func (c *CostExplorerClient) GetClient() *costexplorer.Client {
-	return c.client
-}

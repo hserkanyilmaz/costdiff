@@ -118,4 +118,3 @@ func Warning(text string) string {
 func Error(text string) string {
 	return Red.Sprint(text)
 }
-

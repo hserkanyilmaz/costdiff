@@ -292,27 +292,6 @@ func TestGetAWSMetric(t *testing.T) {
 	}
 }
 
-func TestAbsFunction(t *testing.T) {
-	tests := []struct {
-		input float64
-		want  float64
-	}{
-		{5, 5},
-		{-5, 5},
-		{0, 0},
-		{-0.5, 0.5},
-		{0.5, 0.5},
-		{-1000000, 1000000},
-	}
-
-	for _, tt := range tests {
-		if got := diff.Abs(tt.input); got != tt.want {
-			t.Errorf("diff.Abs(%v) = %v, want %v", tt.input, got, tt.want)
-		}
-	}
-}
-
-
 func TestOutputResult_InvalidFormat(t *testing.T) {
 	result := &diff.Result{}
 	err := outputResult(result, "invalid")

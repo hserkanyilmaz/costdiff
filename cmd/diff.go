@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -182,7 +183,7 @@ func filterByThreshold(result *diff.Result, threshold float64) *diff.Result {
 	}
 
 	for _, item := range result.Items {
-		if diff.Abs(item.Diff) >= threshold {
+		if math.Abs(item.Diff) >= threshold {
 			filtered.Items = append(filtered.Items, item)
 		}
 	}

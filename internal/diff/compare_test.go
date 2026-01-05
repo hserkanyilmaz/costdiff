@@ -16,58 +16,58 @@ func TestCompare(t *testing.T) {
 	}
 
 	tests := []struct {
-		name       string
-		fromCosts  map[string]float64
-		toCosts    map[string]float64
-		wantTotal  float64
-		wantDiff   float64
-		wantPct    float64
-		wantItems  int
+		name      string
+		fromCosts map[string]float64
+		toCosts   map[string]float64
+		wantTotal float64
+		wantDiff  float64
+		wantPct   float64
+		wantItems int
 	}{
 		{
-			name:       "basic comparison",
-			fromCosts:  map[string]float64{"EC2": 100, "S3": 50},
-			toCosts:    map[string]float64{"EC2": 120, "S3": 40},
-			wantTotal:  160,
-			wantDiff:   10,
-			wantPct:    6.666666666666667,
-			wantItems:  2,
+			name:      "basic comparison",
+			fromCosts: map[string]float64{"EC2": 100, "S3": 50},
+			toCosts:   map[string]float64{"EC2": 120, "S3": 40},
+			wantTotal: 160,
+			wantDiff:  10,
+			wantPct:   6.666666666666667,
+			wantItems: 2,
 		},
 		{
-			name:       "empty from costs",
-			fromCosts:  map[string]float64{},
-			toCosts:    map[string]float64{"EC2": 100},
-			wantTotal:  100,
-			wantDiff:   100,
-			wantPct:    0, // Division by zero case
-			wantItems:  1,
+			name:      "empty from costs",
+			fromCosts: map[string]float64{},
+			toCosts:   map[string]float64{"EC2": 100},
+			wantTotal: 100,
+			wantDiff:  100,
+			wantPct:   0, // Division by zero case
+			wantItems: 1,
 		},
 		{
-			name:       "empty to costs",
-			fromCosts:  map[string]float64{"EC2": 100},
-			toCosts:    map[string]float64{},
-			wantTotal:  0,
-			wantDiff:   -100,
-			wantPct:    -100,
-			wantItems:  1,
+			name:      "empty to costs",
+			fromCosts: map[string]float64{"EC2": 100},
+			toCosts:   map[string]float64{},
+			wantTotal: 0,
+			wantDiff:  -100,
+			wantPct:   -100,
+			wantItems: 1,
 		},
 		{
-			name:       "new service added",
-			fromCosts:  map[string]float64{"EC2": 100},
-			toCosts:    map[string]float64{"EC2": 100, "Lambda": 50},
-			wantTotal:  150,
-			wantDiff:   50,
-			wantPct:    50,
-			wantItems:  2,
+			name:      "new service added",
+			fromCosts: map[string]float64{"EC2": 100},
+			toCosts:   map[string]float64{"EC2": 100, "Lambda": 50},
+			wantTotal: 150,
+			wantDiff:  50,
+			wantPct:   50,
+			wantItems: 2,
 		},
 		{
-			name:       "service removed",
-			fromCosts:  map[string]float64{"EC2": 100, "Lambda": 50},
-			toCosts:    map[string]float64{"EC2": 100},
-			wantTotal:  100,
-			wantDiff:   -50,
-			wantPct:    -33.33333333333333,
-			wantItems:  2,
+			name:      "service removed",
+			fromCosts: map[string]float64{"EC2": 100, "Lambda": 50},
+			toCosts:   map[string]float64{"EC2": 100},
+			wantTotal: 100,
+			wantDiff:  -50,
+			wantPct:   -33.33333333333333,
+			wantItems: 2,
 		},
 	}
 
@@ -168,49 +168,6 @@ func TestCompare_SortedByAbsDiff(t *testing.T) {
 	}
 }
 
-func TestCompareSimple(t *testing.T) {
-	fromCosts := map[string]float64{"EC2": 100, "S3": 50}
-	toCosts := map[string]float64{"EC2": 150, "S3": 30}
-
-	items := CompareSimple(fromCosts, toCosts)
-
-	if len(items) != 2 {
-		t.Fatalf("Expected 2 items, got %d", len(items))
-	}
-
-	// Should be sorted by absolute diff: EC2 (50), S3 (20)
-	if items[0].Name != "EC2" {
-		t.Errorf("First item should be EC2, got %s", items[0].Name)
-	}
-	if items[0].Diff != 50 {
-		t.Errorf("EC2 Diff = %v, want 50", items[0].Diff)
-	}
-}
-
-func TestFilterByMinDiff(t *testing.T) {
-	items := []Item{
-		{Name: "A", Diff: 100},
-		{Name: "B", Diff: -50},
-		{Name: "C", Diff: 10},
-		{Name: "D", Diff: -5},
-	}
-
-	filtered := FilterByMinDiff(items, 20)
-
-	if len(filtered) != 2 {
-		t.Errorf("Expected 2 items, got %d", len(filtered))
-	}
-
-	names := make(map[string]bool)
-	for _, item := range filtered {
-		names[item.Name] = true
-	}
-
-	if !names["A"] || !names["B"] {
-		t.Error("Expected A and B to be in filtered results")
-	}
-}
-
 func TestFilterByMinCost(t *testing.T) {
 	items := []Item{
 		{Name: "A", FromCost: 100, ToCost: 50},
@@ -275,22 +232,3 @@ func TestSortByDiffPercent(t *testing.T) {
 		t.Errorf("Unexpected order: %s, %s, %s", items[0].Name, items[1].Name, items[2].Name)
 	}
 }
-
-func TestAbs(t *testing.T) {
-	tests := []struct {
-		input float64
-		want  float64
-	}{
-		{5, 5},
-		{-5, 5},
-		{0, 0},
-		{-0.5, 0.5},
-	}
-
-	for _, tt := range tests {
-		if got := Abs(tt.input); got != tt.want {
-			t.Errorf("Abs(%v) = %v, want %v", tt.input, got, tt.want)
-		}
-	}
-}
-

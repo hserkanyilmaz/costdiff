@@ -64,53 +64,6 @@ func Compare(fromCosts, toCosts map[string]float64, fromPeriod, toPeriod Period)
 	return result
 }
 
-// CompareSimple compares two cost maps and returns items sorted by diff
-func CompareSimple(fromCosts, toCosts map[string]float64) []Item {
-	items := make([]Item, 0)
-
-	// Track all unique names
-	allNames := make(map[string]bool)
-	for name := range fromCosts {
-		allNames[name] = true
-	}
-	for name := range toCosts {
-		allNames[name] = true
-	}
-
-	// Build items
-	for name := range allNames {
-		fromCost := fromCosts[name]
-		toCost := toCosts[name]
-
-		item := Item{
-			Name:     name,
-			FromCost: fromCost,
-			ToCost:   toCost,
-			Diff:     toCost - fromCost,
-		}
-
-		// Calculate percentage change
-		if fromCost == 0 && toCost > 0 {
-			item.IsNew = true
-			item.DiffPct = 100
-		} else if fromCost > 0 && toCost == 0 {
-			item.IsRemoved = true
-			item.DiffPct = -100
-		} else if fromCost > 0 {
-			item.DiffPct = ((toCost - fromCost) / fromCost) * 100
-		}
-
-		items = append(items, item)
-	}
-
-	// Sort by absolute diff (largest changes first)
-	sort.Slice(items, func(i, j int) bool {
-		return math.Abs(items[i].Diff) > math.Abs(items[j].Diff)
-	})
-
-	return items
-}
-
 // SortByToCost sorts items by current period cost descending
 func SortByToCost(items []Item) {
 	sort.Slice(items, func(i, j int) bool {
@@ -137,23 +90,6 @@ func SortByName(items []Item) {
 	sort.Slice(items, func(i, j int) bool {
 		return items[i].Name < items[j].Name
 	})
-}
-
-// Abs returns the absolute value of x.
-// Deprecated: Use math.Abs directly. This is kept for backward compatibility.
-func Abs(x float64) float64 {
-	return math.Abs(x)
-}
-
-// FilterByMinDiff returns items with absolute diff >= minDiff
-func FilterByMinDiff(items []Item, minDiff float64) []Item {
-	filtered := make([]Item, 0)
-	for _, item := range items {
-		if math.Abs(item.Diff) >= minDiff {
-			filtered = append(filtered, item)
-		}
-	}
-	return filtered
 }
 
 // FilterByMinCost returns items where either from or to cost >= minCost

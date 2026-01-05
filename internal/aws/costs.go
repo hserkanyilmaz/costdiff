@@ -112,26 +112,6 @@ func (c *CostExplorerClient) GetDailyCosts(ctx context.Context, start, end time.
 	return dailyCosts, nil
 }
 
-// GetCostsByService fetches cost data grouped by service with additional breakdown
-func (c *CostExplorerClient) GetCostsByService(ctx context.Context, start, end time.Time, metric string) (map[string]float64, error) {
-	return c.GetCosts(ctx, start, end, GroupByService, metric)
-}
-
-// GetCostsByRegion fetches cost data grouped by region
-func (c *CostExplorerClient) GetCostsByRegion(ctx context.Context, start, end time.Time, metric string) (map[string]float64, error) {
-	return c.GetCosts(ctx, start, end, GroupByRegion, metric)
-}
-
-// GetCostsByAccount fetches cost data grouped by linked account
-func (c *CostExplorerClient) GetCostsByAccount(ctx context.Context, start, end time.Time, metric string) (map[string]float64, error) {
-	return c.GetCosts(ctx, start, end, GroupByAccount, metric)
-}
-
-// GetCostsByTag fetches cost data grouped by a specific tag
-func (c *CostExplorerClient) GetCostsByTag(ctx context.Context, start, end time.Time, tagKey, metric string) (map[string]float64, error) {
-	return c.GetCosts(ctx, start, end, GroupType{Type: "TAG", Key: tagKey}, metric)
-}
-
 // buildGroupDefinition creates the GroupBy definition for the API
 func buildGroupDefinition(groupBy GroupType) []types.GroupDefinition {
 	var groupType types.GroupDefinitionType
@@ -179,40 +159,4 @@ func parseAmount(metric types.MetricValue) float64 {
 	}
 
 	return amount
-}
-
-// GetTotalCost fetches total cost for a period without grouping
-// Handles pagination automatically to retrieve all results
-func (c *CostExplorerClient) GetTotalCost(ctx context.Context, start, end time.Time, metric string) (float64, error) {
-	var total float64
-	var nextPageToken *string
-
-	for {
-		input := &costexplorer.GetCostAndUsageInput{
-			TimePeriod: &types.DateInterval{
-				Start: aws.String(start.Format("2006-01-02")),
-				End:   aws.String(end.Format("2006-01-02")),
-			},
-			Granularity:   types.GranularityMonthly,
-			Metrics:       []string{metric},
-			NextPageToken: nextPageToken,
-		}
-
-		result, err := c.client.GetCostAndUsage(ctx, input)
-		if err != nil {
-			return 0, fmt.Errorf("failed to get total cost: %w", err)
-		}
-
-		for _, resultByTime := range result.ResultsByTime {
-			total += parseAmount(resultByTime.Total[metric])
-		}
-
-		// Check for more pages
-		if result.NextPageToken == nil || *result.NextPageToken == "" {
-			break
-		}
-		nextPageToken = result.NextPageToken
-	}
-
-	return total, nil
 }

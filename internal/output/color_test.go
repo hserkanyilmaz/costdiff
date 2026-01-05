@@ -271,4 +271,3 @@ func TestFormatCurrency_WithNoColorEnv(t *testing.T) {
 		t.Errorf("With NO_COLOR set, ColorizeChange should not add colors, got %q", got)
 	}
 }
-
