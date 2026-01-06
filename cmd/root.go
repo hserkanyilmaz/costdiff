@@ -101,20 +101,10 @@ func debugf(format string, args ...interface{}) {
 	}
 }
 
-func infof(format string, args ...interface{}) {
-	if !quiet {
-		fmt.Fprintf(os.Stderr, format+"\n", args...)
-	}
-}
-
 func warnf(format string, args ...interface{}) {
 	if verbose {
 		fmt.Fprintf(os.Stderr, "[WARN] "+format+"\n", args...)
 	}
-}
-
-func errorf(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, "Error: "+format+"\n", args...)
 }
 
 // cliLogger implements aws.Logger interface
