@@ -163,6 +163,7 @@ func TestParseGroupBy(t *testing.T) {
 		wantErr  bool
 	}{
 		{group: "service", wantType: "DIMENSION", wantKey: "SERVICE"},
+		{group: "usage-type", wantType: "DIMENSION", wantKey: "USAGE_TYPE"},
 		{group: "region", wantType: "DIMENSION", wantKey: "REGION"},
 		{group: "account", wantType: "DIMENSION", wantKey: "LINKED_ACCOUNT"},
 		{group: "tag", tag: "team", wantType: "TAG", wantKey: "team"},
@@ -304,6 +305,9 @@ func TestGroupTypeConstants(t *testing.T) {
 	// Verify the predefined group types
 	if aws.GroupByService.Type != "DIMENSION" || aws.GroupByService.Key != "SERVICE" {
 		t.Errorf("GroupByService = %+v, want DIMENSION/SERVICE", aws.GroupByService)
+	}
+	if aws.GroupByUsageType.Type != "DIMENSION" || aws.GroupByUsageType.Key != "USAGE_TYPE" {
+		t.Errorf("GroupByUsageType = %+v, want DIMENSION/USAGE_TYPE", aws.GroupByUsageType)
 	}
 	if aws.GroupByRegion.Type != "DIMENSION" || aws.GroupByRegion.Key != "REGION" {
 		t.Errorf("GroupByRegion = %+v, want DIMENSION/REGION", aws.GroupByRegion)

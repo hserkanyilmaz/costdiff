@@ -31,13 +31,13 @@ func (p Period) Label() string {
 
 // Item represents a single cost item with comparison data
 type Item struct {
-	Name       string  `json:"name"`
-	FromCost   float64 `json:"from_cost"`
-	ToCost     float64 `json:"to_cost"`
-	Diff       float64 `json:"diff"`
-	DiffPct    float64 `json:"diff_percent"`
-	IsNew      bool    `json:"is_new,omitempty"`
-	IsRemoved  bool    `json:"is_removed,omitempty"`
+	Name      string  `json:"name"`
+	FromCost  float64 `json:"from_cost"`
+	ToCost    float64 `json:"to_cost"`
+	Diff      float64 `json:"diff"`
+	DiffPct   float64 `json:"diff_percent"`
+	IsNew     bool    `json:"is_new,omitempty"`
+	IsRemoved bool    `json:"is_removed,omitempty"`
 }
 
 // Result represents the complete comparison result
@@ -175,4 +175,3 @@ func (r *WatchResult) ToJSON() WatchResultJSON {
 		Days:      days,
 	}
 }
-

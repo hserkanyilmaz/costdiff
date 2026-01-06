@@ -19,7 +19,8 @@ type DailyCost struct {
 
 // GetCosts fetches cost data for a given period grouped by the specified type
 // Handles pagination automatically to retrieve all results
-func (c *CostExplorerClient) GetCosts(ctx context.Context, start, end time.Time, groupBy GroupType, metric string) (map[string]float64, error) {
+// serviceFilter is optional - pass empty string to include all services
+func (c *CostExplorerClient) GetCosts(ctx context.Context, start, end time.Time, groupBy GroupType, metric string, serviceFilter string) (map[string]float64, error) {
 	costs := make(map[string]float64)
 	var nextPageToken *string
 
@@ -33,6 +34,16 @@ func (c *CostExplorerClient) GetCosts(ctx context.Context, start, end time.Time,
 			Metrics:       []string{metric},
 			GroupBy:       buildGroupDefinition(groupBy),
 			NextPageToken: nextPageToken,
+		}
+
+		// Apply service filter if specified
+		if serviceFilter != "" {
+			input.Filter = &types.Expression{
+				Dimensions: &types.DimensionValues{
+					Key:    types.DimensionService,
+					Values: []string{serviceFilter},
+				},
+			}
 		}
 
 		result, err := c.client.GetCostAndUsage(ctx, input)

@@ -64,7 +64,7 @@ func runTop(cmd *cobra.Command, args []string) error {
 
 	// Fetch cost data with spinner
 	costs, err := withSpinner("Fetching cost data...", func() (map[string]float64, error) {
-		return client.GetCosts(ctx, period.Start, period.End, groupType, metric)
+		return client.GetCosts(ctx, period.Start, period.End, groupType, metric, serviceFilter)
 	})
 	if err != nil {
 		return handleAWSError(err)

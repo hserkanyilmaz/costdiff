@@ -11,20 +11,21 @@ import (
 
 var (
 	// Global flags
-	fromPeriod string
-	toPeriod   string
-	groupBy    string
-	tagKey     string
-	topN       int
-	outputFmt  string
-	awsProfile string
-	awsRegion  string
-	threshold  float64
-	minCost    float64
-	costMetric string
-	sortBy     string
-	quiet      bool
-	verbose    bool
+	fromPeriod    string
+	toPeriod      string
+	groupBy       string
+	tagKey        string
+	serviceFilter string
+	topN          int
+	outputFmt     string
+	awsProfile    string
+	awsRegion     string
+	threshold     float64
+	minCost       float64
+	costMetric    string
+	sortBy        string
+	quiet         bool
+	verbose       bool
 )
 
 // Valid cost metrics
@@ -65,8 +66,11 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&toPeriod, "to", "t", "", "End period (YYYY-MM or YYYY-MM-DD)")
 
 	// Grouping flags
-	rootCmd.PersistentFlags().StringVarP(&groupBy, "group", "g", "service", "Group by: service|tag|region|account")
+	rootCmd.PersistentFlags().StringVarP(&groupBy, "group", "g", "service", "Group by: service|usage-type|tag|region|account")
 	rootCmd.PersistentFlags().StringVar(&tagKey, "tag", "", "Tag key when grouping by tag")
+
+	// Service filter flag
+	rootCmd.PersistentFlags().StringVar(&serviceFilter, "service", "", "Filter by AWS service name (use with -g usage-type for drill-down)")
 
 	// Output flags
 	rootCmd.PersistentFlags().IntVarP(&topN, "top", "n", 10, "Number of results to show")

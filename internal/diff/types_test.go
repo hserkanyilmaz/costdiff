@@ -215,4 +215,3 @@ func TestDayItem_Fields(t *testing.T) {
 		t.Errorf("Change = %v, want %v", item.Change, 25.50)
 	}
 }
-

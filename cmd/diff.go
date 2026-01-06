@@ -56,12 +56,12 @@ func runDiff(cmd *cobra.Command, args []string) error {
 	spin := newProgressSpinner("Fetching cost data...")
 	defer spin.Stop()
 
-	fromCosts, err := client.GetCosts(ctx, from.Start, from.End, groupType, metric)
+	fromCosts, err := client.GetCosts(ctx, from.Start, from.End, groupType, metric, serviceFilter)
 	if err != nil {
 		return handleAWSError(err)
 	}
 
-	toCosts, err := client.GetCosts(ctx, to.Start, to.End, groupType, metric)
+	toCosts, err := client.GetCosts(ctx, to.Start, to.End, groupType, metric, serviceFilter)
 	if err != nil {
 		return handleAWSError(err)
 	}
@@ -159,6 +159,8 @@ func parseGroupBy(group, tag string) (aws.GroupType, error) {
 	switch group {
 	case "service":
 		return aws.GroupByService, nil
+	case "usage-type":
+		return aws.GroupByUsageType, nil
 	case "region":
 		return aws.GroupByRegion, nil
 	case "account":
@@ -169,7 +171,7 @@ func parseGroupBy(group, tag string) (aws.GroupType, error) {
 		}
 		return aws.GroupType{Type: "TAG", Key: tag}, nil
 	default:
-		return aws.GroupType{}, fmt.Errorf("invalid group: %s (must be service|tag|region|account)", group)
+		return aws.GroupType{}, fmt.Errorf("invalid group: %s (must be service|usage-type|tag|region|account)", group)
 	}
 }
 

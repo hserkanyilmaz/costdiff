@@ -13,7 +13,8 @@ import (
 // This interface allows for easy mocking in tests.
 type CostFetcher interface {
 	// GetCosts fetches cost data for a given period grouped by the specified type.
-	GetCosts(ctx context.Context, start, end time.Time, groupBy GroupType, metric string) (map[string]float64, error)
+	// serviceFilter is optional - pass empty string to include all services.
+	GetCosts(ctx context.Context, start, end time.Time, groupBy GroupType, metric string, serviceFilter string) (map[string]float64, error)
 
 	// GetDailyCosts fetches daily cost data for a given period.
 	GetDailyCosts(ctx context.Context, start, end time.Time, metric string) ([]DailyCost, error)
@@ -88,7 +89,8 @@ type GroupType struct {
 
 // Predefined group types
 var (
-	GroupByService = GroupType{Type: "DIMENSION", Key: "SERVICE"}
-	GroupByRegion  = GroupType{Type: "DIMENSION", Key: "REGION"}
-	GroupByAccount = GroupType{Type: "DIMENSION", Key: "LINKED_ACCOUNT"}
+	GroupByService   = GroupType{Type: "DIMENSION", Key: "SERVICE"}
+	GroupByRegion    = GroupType{Type: "DIMENSION", Key: "REGION"}
+	GroupByAccount   = GroupType{Type: "DIMENSION", Key: "LINKED_ACCOUNT"}
+	GroupByUsageType = GroupType{Type: "DIMENSION", Key: "USAGE_TYPE"}
 )

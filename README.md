@@ -59,11 +59,11 @@ costdiff
 # Compare specific months
 costdiff --from 2024-10 --to 2024-12
 
-# Group by tag
-costdiff -g tag --tag team
-
 # Show top cost drivers
 costdiff top
+
+# Drill down into a service's usage types
+costdiff top --service "Amazon EC2" -g usage-type
 
 # View daily trends
 costdiff watch
@@ -78,9 +78,9 @@ Compare costs between two time periods.
 ```bash
 costdiff                              # last month vs current
 costdiff --from 2024-10 --to 2024-12  # specific months
-costdiff -g tag --tag team            # group by tag
 costdiff -g region                    # group by region
 costdiff -g account                   # group by linked account
+costdiff -g tag --tag team            # group by tag
 costdiff --threshold 100              # only show changes > $100
 costdiff --min-cost 50                # only show items >= $50
 costdiff -n 20                        # show top 20 items
@@ -119,13 +119,48 @@ Print version information.
 costdiff version
 ```
 
+## Drill Down by Usage Type
+
+See what's driving costs within a specific service by drilling down into usage types.
+
+```bash
+# Step 1: See top services
+costdiff top
+
+# Step 2: Drill into a specific service
+costdiff top --service "Amazon Elastic Compute Cloud - Compute" -g usage-type
+```
+
+This shows granular cost breakdowns like:
+- `BoxUsage:t3.medium` - EC2 instance hours
+- `DataTransfer-Out-Bytes` - Data transfer costs
+- `EBS:VolumeUsage.gp3` - Storage volumes
+- `Requests-Tier1` - API request costs
+
+### Examples
+
+```bash
+# EC2 usage breakdown
+costdiff top --service "Amazon EC2" -g usage-type
+
+# S3 usage breakdown
+costdiff top --service "Amazon Simple Storage Service" -g usage-type
+
+# Compare usage types between months
+costdiff --service "Amazon RDS Service" -g usage-type
+
+# Top 20 usage types, sorted by cost
+costdiff top --service "AWS Lambda" -g usage-type -n 20 --sort cost
+```
+
 ## Flags
 
 | Flag | Short | Description | Default |
 |------|-------|-------------|---------|
 | `--from` | `-f` | Start period (YYYY-MM or YYYY-MM-DD) | Last month |
 | `--to` | `-t` | End period (YYYY-MM or YYYY-MM-DD) | Current month |
-| `--group` | `-g` | Group by: service\|tag\|region\|account | service |
+| `--group` | `-g` | Group by: service\|usage-type\|region\|account\|tag | service |
+| `--service` | | Filter by AWS service name (for drill-down) | |
 | `--tag` | | Tag key when grouping by tag | |
 | `--metric` | `-m` | Cost metric (see below) | net-amortized |
 | `--top` | `-n` | Number of results | 10 |
@@ -137,6 +172,16 @@ costdiff version
 | `--min-cost` | | Only show items where from or to cost >= $X | 0 |
 | `--quiet` | `-q` | Suppress non-essential output | false |
 | `--verbose` | `-v` | Debug output | false |
+
+### Grouping Options
+
+| Group | Description |
+|-------|-------------|
+| `service` | AWS service (default) |
+| `usage-type` | Usage type within a service (use with `--service`) |
+| `region` | AWS region |
+| `account` | Linked AWS account |
+| `tag` | Cost allocation tag (requires `--tag`) |
 
 ### Cost Metrics
 
@@ -290,4 +335,3 @@ make build-all
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
-
